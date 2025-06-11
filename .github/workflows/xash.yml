@@ -40,10 +40,9 @@ jobs:
           cp build/engine.js site/
           cp build/engine.wasm site/
 
-      - name: ➕ Add Custom Uplink Loader
+      - name: ➕ Add Custom Uplink Loader (index.html)
         run: |
-          cat <<'EOF' > site/index.html
-<!DOCTYPE html>
+          echo '<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -54,30 +53,26 @@ jobs:
   <script type="module">
     async function fetchAndMountUplink(Module) {
       const uplinkZipUrl = "https://archive.org/download/HalfLifeUplink/HalfLifeUplink.zip";
-      const JSZip = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
-
+      const JSZip = await import("https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm");
       const res = await fetch(uplinkZipUrl);
       const zipData = await res.arrayBuffer();
       const zip = await JSZip.loadAsync(zipData);
 
       const FS = Module.FS;
-      FS.mkdir('/valve');
+      FS.mkdir("/valve");
 
       for (const [filename, file] of Object.entries(zip.files)) {
         if (file.dir) continue;
         const data = await file.async("uint8array");
-        const path = '/valve/' + filename;
-
-        const dirs = path.split('/').slice(0, -1);
-        let current = '';
+        const path = "/valve/" + filename;
+        const dirs = path.split("/").slice(0, -1);
+        let current = "";
         for (const d of dirs) {
-          current += '/' + d;
+          current += "/" + d;
           try { FS.mkdir(current); } catch {}
         }
-
         FS.writeFile(path, data);
       }
-
       console.log("Uplink loaded.");
     }
 
@@ -86,7 +81,7 @@ jobs:
     script.onload = () => {
       window.Module = {
         preRun: [fetchAndMountUplink],
-        arguments: ['-dev', '-console', '+map', 'uplink'],
+        arguments: ["-dev", "-console", "+map", "uplink"],
         canvas: document.createElement("canvas"),
         onRuntimeInitialized() {
           document.body.appendChild(Module.canvas);
@@ -97,8 +92,7 @@ jobs:
     document.body.appendChild(script);
   </script>
 </body>
-</html>
-EOF
+</html>' > site/index.html
 
       - name: 🚀 Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
