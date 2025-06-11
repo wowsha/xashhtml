@@ -1,0 +1,108 @@
+name: Build & Deploy Xash3D Web with Uplink
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v3
+
+      - name: 🧰 Set up Emscripten
+        uses: mymindstorm/setup-emsdk@v12
+        with:
+          version: 3.1.50
+
+      - name: 🔧 Install build tools
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+
+      - name: 🛠️ Configure CMake
+        run: |
+          git clone https://github.com/FWGS/xash3d-fwgs.git xash
+          mkdir build
+          cd build
+          emcmake cmake ../xash -DXASH_BROWSER=ON -DXASH_VGUI=OFF -DCMAKE_BUILD_TYPE=Release
+
+      - name: 🏗️ Build Xash3D (WASM)
+        run: |
+          cd build
+          emmake make -j$(nproc)
+
+      - name: 📦 Copy Build Outputs
+        run: |
+          mkdir site
+          cp build/engine.html site/index.html
+          cp build/engine.js site/
+          cp build/engine.wasm site/
+
+      - name: ➕ Add Custom Uplink Loader
+        run: |
+          cat > site/index.html <<EOF
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Xash3D Web - Half-Life: Uplink</title>
+</head>
+<body>
+  <h1>Loading Half-Life: Uplink in Xash3D Web...</h1>
+  <script type="module">
+    async function fetchAndMountUplink(Module) {
+      const uplinkZipUrl = "https://archive.org/download/HalfLifeUplink/HalfLifeUplink.zip";
+      const JSZip = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
+
+      const res = await fetch(uplinkZipUrl);
+      const zipData = await res.arrayBuffer();
+      const zip = await JSZip.loadAsync(zipData);
+
+      const FS = Module.FS;
+      FS.mkdir('/valve');
+
+      for (const [filename, file] of Object.entries(zip.files)) {
+        if (file.dir) continue;
+        const data = await file.async("uint8array");
+        const path = '/valve/' + filename;
+
+        // Ensure subfolders exist
+        const dirs = path.split('/').slice(0, -1);
+        let current = '';
+        for (const d of dirs) {
+          current += '/' + d;
+          try { FS.mkdir(current); } catch {}
+        }
+
+        FS.writeFile(path, data);
+      }
+
+      console.log("Uplink loaded.");
+    }
+
+    const script = document.createElement("script");
+    script.src = "engine.js";
+    script.onload = () => {
+      window.Module = {
+        preRun: [fetchAndMountUplink],
+        arguments: ['-dev', '-console', '+map', 'uplink'],
+        canvas: document.createElement("canvas"),
+        onRuntimeInitialized() {
+          document.body.appendChild(Module.canvas);
+          Module.canvas.focus();
+        }
+      };
+    };
+    document.body.appendChild(script);
+  </script>
+</body>
+</html>
+EOF
+
+      - name: 🚀 Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: site
