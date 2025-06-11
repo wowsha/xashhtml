@@ -36,13 +36,13 @@ jobs:
       - name: 📦 Copy Build Outputs
         run: |
           mkdir site
-          cp build/engine.html site/index.html
+          cp build/engine.html site/
           cp build/engine.js site/
           cp build/engine.wasm site/
 
       - name: ➕ Add Custom Uplink Loader
         run: |
-          cat > site/index.html <<EOF
+          cat <<'EOF' > site/index.html
 <!DOCTYPE html>
 <html>
 <head>
@@ -68,7 +68,6 @@ jobs:
         const data = await file.async("uint8array");
         const path = '/valve/' + filename;
 
-        // Ensure subfolders exist
         const dirs = path.split('/').slice(0, -1);
         let current = '';
         for (const d of dirs) {
