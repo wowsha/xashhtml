@@ -17,16 +17,11 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake python3 git curl
 
-      - name: Setup Node.js 18 (avoid broken node download)
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: Set up Emscripten SDK (skip Node install)
+      - name: Set up Emscripten SDK version 4.0.0
         run: |
           git clone https://github.com/emscripten-core/emsdk.git
           cd emsdk
-          ./emsdk install 4.0.0 --no-node
+          ./emsdk install 4.0.0
           ./emsdk activate 4.0.0
           echo "EMSDK_PATH=$PWD" >> $GITHUB_ENV
 
