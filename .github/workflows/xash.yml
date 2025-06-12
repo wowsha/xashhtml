@@ -20,15 +20,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake python3 git curl
 
-      - name: Set up Emscripten
+      - name: Set up Emscripten SDK (version 4.0.0 pinned)
         run: |
           git clone https://github.com/emscripten-core/emsdk.git
           cd emsdk
-          ./emsdk install latest
-          ./emsdk activate latest
+          ./emsdk install 4.0.0
+          ./emsdk activate 4.0.0
           echo "EMSDK_PATH=$PWD" >> $GITHUB_ENV
 
-      - name: Add Emscripten to PATH
+      - name: Add Emscripten tools to PATH
         run: echo "$EMSDK_PATH/upstream/emscripten" >> $GITHUB_PATH
 
       - name: Build Xash3D Web
