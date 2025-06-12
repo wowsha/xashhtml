@@ -12,27 +12,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout your repository
         uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake python3 git
+          sudo apt-get install -y cmake python3 git curl
 
-      - name: Install Emscripten
+      - name: Set up Emscripten
         run: |
           git clone https://github.com/emscripten-core/emsdk.git
           cd emsdk
           ./emsdk install latest
           ./emsdk activate latest
-          source ./emsdk_env.sh
-          echo "source $(pwd)/emsdk_env.sh" >> $GITHUB_ENV
+          echo "EMSDK_PATH=$PWD" >> $GITHUB_ENV
+
+      - name: Add Emscripten to PATH
+        run: echo "$EMSDK_PATH/upstream/emscripten" >> $GITHUB_PATH
 
       - name: Build Xash3D Web
         run: |
-          source emsdk/emsdk_env.sh
-          git clone https://github.com/FWGS/xash3d-fwgs.git
+          source "$EMSDK_PATH/emsdk_env.sh"
+          git clone --recursive https://github.com/FWGS/xash3d-fwgs.git
           cd xash3d-fwgs
           mkdir build && cd build
           emcmake cmake .. -DXASH3D_PLATFORM=emscripten -DCMAKE_BUILD_TYPE=Release
