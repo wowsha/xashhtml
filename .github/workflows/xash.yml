@@ -2,42 +2,42 @@ name: Build Xash3D Web
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y cmake python3 git curl
+    - name: Install Emscripten SDK
+      run: |
+        git clone https://github.com/emscripten-core/emsdk.git
+        cd emsdk
+        ./emsdk install 4.0.0
+        ./emsdk activate 4.0.0
+        echo "source $(pwd)/emsdk_env.sh" >> $GITHUB_ENV
+      shell: bash
 
-      - name: Set up Emscripten SDK version 4.0.0
-        run: |
-          git clone https://github.com/emscripten-core/emsdk.git
-          cd emsdk
-          ./emsdk install 4.0.0
-          ./emsdk activate 4.0.0
-          echo "EMSDK_PATH=$PWD" >> $GITHUB_ENV
+    - name: Load Emscripten environment
+      run: source ${{ env.HOME }}/work/_temp/_runner_file_commands/set-env-*/emsdk_env.sh
+      shell: bash
 
-      - name: Add Emscripten tools to PATH
-        run: echo "$EMSDK_PATH/upstream/emscripten" >> $GITHUB_PATH
+    - name: Clone Xash3D-Emscripten
+      run: git clone https://github.com/icrazyblaze/Xash3D-Emscripten.git
 
-      - name: Build Xash3D Web
-        run: |
-          source "$EMSDK_PATH/emsdk_env.sh"
-          git clone --recursive https://github.com/FWGS/xash3d-fwgs.git
-          cd xash3d-fwgs
-          mkdir build && cd build
-          emcmake cmake .. -DXASH3D_PLATFORM=emscripten -DCMAKE_BUILD_TYPE=Release
-          emmake make -j$(nproc)
+    - name: Build Xash3D for Web
+      working-directory: Xash3D-Emscripten
+      run: |
+        emcmake cmake .
+        emmake make -j$(nproc)
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: xash3d-web-build
-          path: xash3d-fwgs/build/
+    - name: Upload Web Build Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: xash3d-web-build
+        path: Xash3D-Emscripten/build
