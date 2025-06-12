@@ -1,8 +1,10 @@
-name: Build & Deploy Xash3D Web with Uplink
+name: Build Xash3D Web
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -10,92 +12,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout repo
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: 🧰 Set up Emscripten
-        uses: mymindstorm/setup-emsdk@v12
-        with:
-          version: 3.1.50
-
-      - name: 🔧 Install build tools
-        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
-
-      - name: 🛠️ Configure CMake
+      - name: Install dependencies
         run: |
-          git clone https://github.com/FWGS/xash3d-fwgs.git xash
-          mkdir build
-          cd build
-          emcmake cmake ../xash -DXASH_BROWSER=ON -DXASH_VGUI=OFF -DCMAKE_BUILD_TYPE=Release
+          sudo apt-get update
+          sudo apt-get install -y cmake python3 git
 
-      - name: 🏗️ Build Xash3D (WASM)
+      - name: Install Emscripten
         run: |
-          cd build
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install latest
+          ./emsdk activate latest
+          source ./emsdk_env.sh
+          echo "source $(pwd)/emsdk_env.sh" >> $GITHUB_ENV
+
+      - name: Build Xash3D Web
+        run: |
+          source emsdk/emsdk_env.sh
+          git clone https://github.com/FWGS/xash3d-fwgs.git
+          cd xash3d-fwgs
+          mkdir build && cd build
+          emcmake cmake .. -DXASH3D_PLATFORM=emscripten -DCMAKE_BUILD_TYPE=Release
           emmake make -j$(nproc)
 
-      - name: 📦 Copy Build Outputs
-        run: |
-          mkdir site
-          cp build/engine.html site/
-          cp build/engine.js site/
-          cp build/engine.wasm site/
-
-      - name: ➕ Add Custom Uplink Loader (index.html)
-        run: |
-          echo '<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Xash3D Web - Half-Life: Uplink</title>
-</head>
-<body>
-  <h1>Loading Half-Life: Uplink in Xash3D Web...</h1>
-  <script type="module">
-    async function fetchAndMountUplink(Module) {
-      const uplinkZipUrl = "https://archive.org/download/HalfLifeUplink/HalfLifeUplink.zip";
-      const JSZip = await import("https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm");
-      const res = await fetch(uplinkZipUrl);
-      const zipData = await res.arrayBuffer();
-      const zip = await JSZip.loadAsync(zipData);
-
-      const FS = Module.FS;
-      FS.mkdir("/valve");
-
-      for (const [filename, file] of Object.entries(zip.files)) {
-        if (file.dir) continue;
-        const data = await file.async("uint8array");
-        const path = "/valve/" + filename;
-        const dirs = path.split("/").slice(0, -1);
-        let current = "";
-        for (const d of dirs) {
-          current += "/" + d;
-          try { FS.mkdir(current); } catch {}
-        }
-        FS.writeFile(path, data);
-      }
-      console.log("Uplink loaded.");
-    }
-
-    const script = document.createElement("script");
-    script.src = "engine.js";
-    script.onload = () => {
-      window.Module = {
-        preRun: [fetchAndMountUplink],
-        arguments: ["-dev", "-console", "+map", "uplink"],
-        canvas: document.createElement("canvas"),
-        onRuntimeInitialized() {
-          document.body.appendChild(Module.canvas);
-          Module.canvas.focus();
-        }
-      };
-    };
-    document.body.appendChild(script);
-  </script>
-</body>
-</html>' > site/index.html
-
-      - name: 🚀 Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload WASM build
+        uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: site
+          name: xash3d-web-build
+          path: xash3d-fwgs/build/
