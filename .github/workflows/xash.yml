@@ -12,19 +12,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout your repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake python3 git curl
+        run: sudo apt-get update && sudo apt-get install -y cmake python3 git curl
 
-      - name: Set up Emscripten SDK (version 4.0.0 pinned)
+      - name: Setup Node.js 18 (avoid broken node download)
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Set up Emscripten SDK (skip Node install)
         run: |
           git clone https://github.com/emscripten-core/emsdk.git
           cd emsdk
-          ./emsdk install 4.0.0
+          ./emsdk install 4.0.0 --no-node
           ./emsdk activate 4.0.0
           echo "EMSDK_PATH=$PWD" >> $GITHUB_ENV
 
@@ -40,8 +42,7 @@ jobs:
           emcmake cmake .. -DXASH3D_PLATFORM=emscripten -DCMAKE_BUILD_TYPE=Release
           emmake make -j$(nproc)
 
-      - name: Upload WASM build
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: xash3d-web-build
           path: xash3d-fwgs/build/
