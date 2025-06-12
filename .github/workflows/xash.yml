@@ -12,7 +12,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Install Emscripten SDK
       run: |
@@ -37,7 +37,7 @@ jobs:
         emmake make -j$(nproc)
 
     - name: Upload Web Build Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: xash3d-web-build
         path: Xash3D-Emscripten/build
